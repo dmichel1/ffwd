@@ -1,12 +1,12 @@
 /**
  * Copyright 2013-2017 Spotify AB. All rights reserved.
- *
+ * <p>
  * The contents of this file are licensed under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with the
  * License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -21,28 +21,28 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.netflix.loadbalancer.ILoadBalancer;
 import com.netflix.loadbalancer.LoadBalancerBuilder;
 import com.netflix.loadbalancer.reactive.LoadBalancerCommand;
+import java.io.IOException;
 import java.util.Optional;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.Interceptor;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import rx.Observable;
-
 
 @Slf4j
 @Data
 public class HttpClient {
-
     private final RawHttpClientFactory clientFactory;
 
     private final ILoadBalancer loadBalancer;
 
     public Observable<Void> sendBatch(final Batch batch) {
-        return buildCommand()
-            .submit(server -> clientFactory.newClient(server).sendBatch(batch));
+        return buildCommand().submit(server -> clientFactory.newClient(server).sendBatch(batch));
     }
 
     public static class Builder {
-
         private Optional<HttpDiscovery> discovery = Optional.empty();
 
         private Optional<String> searchDomain = Optional.empty();
@@ -57,10 +57,13 @@ public class HttpClient {
 
         public HttpClient build() {
             final HttpDiscovery discovery = this.discovery.orElseGet(HttpDiscovery::supplyDefault);
-            final OkHttpClient okHttpClient = new OkHttpClient();
+            final OkHttpClient.Builder builder = new OkHttpClient.Builder();
+
+            builder.addInterceptor(new GzipRequestInterceptor());
+
             final ObjectMapper objectMapper = setupApplicationJson();
             final RawHttpClientFactory httpClientFactory =
-                new RawHttpClientFactory(objectMapper, okHttpClient);
+                new RawHttpClientFactory(objectMapper, builder.build());
             final HttpPing httpPing = new HttpPing(httpClientFactory);
 
             final ILoadBalancer loadBalancer = discovery
@@ -82,7 +85,7 @@ public class HttpClient {
         }
     }
 
-    protected LoadBalancerCommand<Void> buildCommand(){
+    protected LoadBalancerCommand<Void> buildCommand() {
         return LoadBalancerCommand.<Void>builder().withLoadBalancer(loadBalancer).build();
     }
 }

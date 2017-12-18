@@ -1,12 +1,12 @@
 /**
  * Copyright 2013-2017 Spotify AB. All rights reserved.
- *
+ * <p>
  * The contents of this file are licensed under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with the
  * License. You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -38,28 +38,18 @@ public class RawHttpClientTest {
 
     private MockServerClient mockServerClient;
 
-    private final ObjectMapper mapper = HttpClient.Builder.setupApplicationJson();
-
-    private final OkHttpClient okHttpClient = new OkHttpClient();
-
-    private RawHttpClient rawHttpClient;
+    private HttpClient httpClient;
 
     @Before
     public void setUp() throws Exception {
-        mockServer.getPort();
-
-        rawHttpClient =
-            new RawHttpClient(mapper, okHttpClient, "http://localhost:" + mockServer.getPort());
-
-
-    }
-
-    @Test
-    public void testPing() {
         mockServerClient
             .when(request().withMethod("GET").withPath("/ping"))
             .respond(response().withStatusCode(200));
-        rawHttpClient.ping().toCompletable().await();
+
+        httpClient = new HttpClient.Builder()
+            .discovery(new HttpDiscovery.Static(
+                ImmutableList.of(new HttpDiscovery.HostAndPort("localhost", mockServer.getPort()))))
+            .build();
     }
 
     @Test
@@ -81,7 +71,7 @@ public class RawHttpClientTest {
         final Batch batch =
             new Batch(ImmutableMap.of("what", "error-rate"), ImmutableList.of(point));
 
-        rawHttpClient.sendBatch(batch).toCompletable().await();
+        httpClient.sendBatch(batch).toCompletable().await();
     }
 
     @Test
@@ -105,7 +95,6 @@ public class RawHttpClientTest {
         final Batch batch =
             new Batch(ImmutableMap.of("what", "error-rate"), ImmutableList.of(point));
 
-        rawHttpClient.sendBatch(batch).toCompletable().await();
-
+        httpClient.sendBatch(batch).toCompletable().await();
     }
 }
